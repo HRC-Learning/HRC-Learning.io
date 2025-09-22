@@ -1,0 +1,861 @@
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HRC Learning - Portal Educativo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+  />
+  <style>
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(74, 125, 245, 0.5);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-blue-200 to-blue-300 dark:from-gray-900 dark:to-gray-800 min-h-screen flex flex-col font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+  <header class="bg-blue-600 dark:bg-gray-900 sticky top-0 z-50 shadow-md transition-colors duration-300">
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <div class="flex items-center space-x-2 text-white font-extrabold text-lg select-none">
+          <i class="fas fa-hospital-symbol"></i>
+          <span>HRC Learning</span>
+        </div>
+        <ul id="nav-links" class="flex space-x-6 text-white font-semibold text-base">
+          <li><button id="nav-inicio" class="bg-blue-400 rounded-md px-4 py-2 block hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">Inicio</button></li>
+          <li><button id="nav-cursos" class="bg-blue-400 rounded-md px-4 py-2 block hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">Cursos</button></li>
+          <li><button id="nav-pacientes" class="bg-blue-400 rounded-md px-4 py-2 block hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">Pacientes</button></li>
+          <li><button id="nav-admin" class="bg-blue-400 rounded-md px-4 py-2 block hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">Modo Administrador</button></li>
+          <li>
+            <button id="btn-toggle-dark" aria-label="Toggle Dark Mode" class="text-white focus:outline-none focus:ring-2 focus:ring-blue-300 rounded px-2 py-1">
+              <i class="fas fa-moon"></i>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content" class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20 space-y-10 transition-colors duration-300">
+    
+  </main>
+
+  <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-lg transition-colors duration-300">
+      <h3 class="text-lg font-bold mb-4 text-center text-gray-900 dark:text-gray-100">Modo Administrador - Ingrese Contraseña</h3>
+      <input
+        id="admin-password-input"
+        type="password"
+        placeholder="Contraseña"
+        class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+      />
+      <div class="flex justify-end space-x-4">
+        <button id="password-cancel" class="px-4 py-2 rounded-md bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-gray-100">Cancelar</button>
+        <button id="password-submit" class="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white">Entrar</button>
+      </div>
+      <p id="password-error" class="text-red-600 mt-2 text-center hidden">Contraseña incorrecta</p>
+    </div>
+  </div>
+
+  <script>
+    // Variables and elements
+    const mainContent = document.getElementById("main-content");
+    const navInicio = document.getElementById("nav-inicio");
+    const navCursos = document.getElementById("nav-cursos");
+    const navPacientes = document.getElementById("nav-pacientes");
+    const navAdmin = document.getElementById("nav-admin");
+    const btnEntrarCursos = document.getElementById("btn-entrar-cursos");
+    const passwordModal = document.getElementById("password-modal");
+    const passwordInput = document.getElementById("admin-password-input");
+    const passwordSubmit = document.getElementById("password-submit");
+    const passwordCancel = document.getElementById("password-cancel");
+    const passwordError = document.getElementById("password-error");
+    const btnToggleDark = document.getElementById("btn-toggle-dark");
+
+    const ADMIN_PASSWORD = "admin123";
+    let isAdmin = false;
+    let currentView = "home";
+    let currentCourseId = null;
+    let currentVideoId = null;
+
+    // Dark mode toggle
+    function setDarkMode(enabled) {
+      if(enabled) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("darkMode", "true");
+        btnToggleDark.innerHTML = '<i class="fas fa-sun"></i>';
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("darkMode", "false");
+        btnToggleDark.innerHTML = '<i class="fas fa-moon"></i>';
+      }
+    }
+    btnToggleDark.addEventListener("click", () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      setDarkMode(!isDark);
+    });
+    if(localStorage.getItem("darkMode") === "true") {
+      setDarkMode(true);
+    } else {
+      setDarkMode(false);
+    }
+
+    // Utility functions
+    function saveData(key, data) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+    function loadData(key) {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    }
+    function generateId() {
+      return '_' + Math.random().toString(36).substr(2, 9);
+    }
+    function cleanCourses(courses) {
+      return courses.filter(c => c.title && c.title.trim() !== "");
+    }
+    function cleanPatientForms(forms) {
+      return forms.filter(f => f.title && f.title.trim() !== "");
+    }
+
+    // Initial sample data if none
+    if(!loadData("courses")) {
+      saveData("courses", [
+        {
+          id: "curso1",
+          title: "Bienestar Mental: Introducción",
+          videos: [
+            {
+              id: "vid1",
+              title: "Video 1 - Introducción",
+              youtubeLink: "https://www.youtube.com/watch?v=92i6v6v6v6A",
+              formLink: "https://docs.google.com/forms/d/e/1FAIpQLSfExampleForm1/viewform"
+            },
+            {
+              id: "vid2",
+              title: "Video 2 - Técnicas de relajación",
+              youtubeLink: "https://www.youtube.com/watch?v=abcd1234efg",
+              formLink: ""
+            }
+          ]
+        },
+        {
+          id: "curso2",
+          title: "Salud Emocional y Cómo Mantenerla",
+          videos: [
+            {
+              id: "vid3",
+              title: "Video 1 - Salud emocional básica",
+              youtubeLink: "https://www.youtube.com/watch?v=xyz98765432",
+              formLink: "https://docs.google.com/forms/d/e/1FAIpQLSfExampleForm2/viewform"
+            }
+          ]
+        }
+      ]);
+    }
+    if(!loadData("patientForms")) {
+      saveData("patientForms", [
+        {
+          id: "form1",
+          title: "Formulario de Evaluación Emocional",
+          formLink: "https://docs.google.com/forms/d/e/1FAIpQLSfPatientForm1/viewform"
+        },
+        {
+          id: "form2",
+          title: "Encuesta de Satisfacción del Paciente",
+          formLink: "https://docs.google.com/forms/d/e/1FAIpQLSfPatientForm2/viewform"
+        }
+      ]);
+    }
+
+    // Navigation highlight helper
+    function highlightNav(section) {
+      document.querySelectorAll("#nav-links button").forEach(btn => {
+        btn.classList.remove("bg-blue-400", "rounded-md", "px-4", "py-2", "block", "hover:bg-blue-500", "focus:ring-2");
+      });
+      if(section === "inicio") {
+        navInicio.classList.add("bg-blue-400", "rounded-md", "px-4", "py-2", "block", "hover:bg-blue-500", "focus:ring-2");
+      } else if(section === "cursos") {
+        navCursos.classList.add("bg-blue-400", "rounded-md", "px-4", "py-2", "block", "hover:bg-blue-500", "focus:ring-2");
+      } else if(section === "pacientes") {
+        navPacientes.classList.add("bg-blue-400", "rounded-md", "px-4", "py-2", "block", "hover:bg-blue-500", "focus:ring-2");
+      } else if(section === "admin") {
+        navAdmin.classList.add("bg-blue-400", "rounded-md", "px-4", "py-2", "block", "hover:bg-blue-500", "focus:ring-2");
+      }
+    }
+
+    // Show password modal
+    navAdmin.addEventListener("click", () => {
+      passwordInput.value = "";
+      passwordError.classList.add("hidden");
+      passwordModal.classList.remove("hidden");
+      passwordInput.focus();
+    });
+
+    passwordCancel.addEventListener("click", () => {
+      passwordModal.classList.add("hidden");
+    });
+
+    passwordSubmit.addEventListener("click", () => {
+      if (passwordInput.value === ADMIN_PASSWORD) {
+        isAdmin = true;
+        passwordModal.classList.add("hidden");
+        loadAdminCursosView();
+        highlightNav("admin");
+      } else {
+        passwordError.classList.remove("hidden");
+      }
+    });
+
+    // Load home view
+    function loadHomeView() {
+      highlightNav("inicio");
+      mainContent.innerHTML = `
+      <section id="home-section" class="space-y-10">
+        <section
+          class="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-gray-800 dark:to-gray-700 text-white rounded-xl py-8 px-10 max-w-4xl mx-auto shadow-lg transition-colors duration-300"
+        >
+          <h2 class="text-center font-extrabold text-xl sm:text-2xl select-none">
+            Conmemoración del mes:
+          </h2>
+          <p class="text-center mt-2 text-sm sm:text-base max-w-xl mx-auto select-text">
+            Explora nuestros cursos y videos educativos para aprender sobre
+            bienestar mental y cómo mantener una buena salud emocional.
+          </p>
+        </section>
+
+        <section
+          class="bg-blue-100 dark:bg-gray-700 max-w-sm rounded-xl p-6 shadow-lg drop-shadow-lg mx-auto transition-colors duration-300"
+          style="box-shadow: 0 10px 15px -3px rgba(147,197,253,0.5), 0 4px 6px -4px rgba(147,197,253,0.5);"
+        >
+          <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-lg mb-3 select-none">Cursos en Línea</h3>
+          <p class="text-gray-700 dark:text-gray-300 text-sm mb-6 select-text">
+            Accede a una selección de cursos y videos educativos para todo público.
+          </p>
+          <button id="btn-entrar-cursos" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400">
+            Entrar a Cursos
+          </button>
+        </section>
+      </section>
+      `;
+      document.getElementById("btn-entrar-cursos").addEventListener("click", () => {
+        if(isAdmin) {
+          loadAdminCursosView();
+        } else {
+          loadCursosListView();
+        }
+      });
+    }
+
+    // Load Cursos List View
+    function loadCursosListView() {
+      highlightNav("cursos");
+      let courses = loadData("courses") || [];
+      courses = cleanCourses(courses);
+      saveData("courses", courses);
+      if(courses.length === 0) {
+        mainContent.innerHTML = `
+          <section class="max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4 text-center select-none">Cursos Disponibles</h2>
+            <p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay cursos disponibles en este momento.</p>
+            <div class="mt-6 text-center">
+              <button id="btn-back-cursos" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Volver</button>
+            </div>
+          </section>
+        `;
+        document.getElementById("btn-back-cursos").addEventListener("click", loadHomeView);
+        return;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-5xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold mb-6 text-center select-none">Cursos Disponibles</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            ${courses.map(course => `
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition select-none" data-id="${course.id}">
+                <img loading="lazy" src="https://placehold.co/400x200?text=${encodeURIComponent(course.title)}" alt="Imagen de referencia para el curso ${course.title}" class="rounded-md mb-3 w-full object-cover h-40" />
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${course.title}</h3>
+              </div>
+            `).join("")}
+          </div>
+          <div class="mt-6 text-center">
+            <button id="btn-back-cursos" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Volver</button>
+          </div>
+        </section>
+      `;
+      document.querySelectorAll("[data-id]").forEach(card => {
+        card.addEventListener("click", () => {
+          const courseId = card.getAttribute("data-id");
+          if(isAdmin) {
+            loadAdminVideosView(courseId);
+          } else {
+            loadCursoVideosView(courseId);
+          }
+        });
+      });
+      document.getElementById("btn-back-cursos").addEventListener("click", () => {
+        if(isAdmin) {
+          loadAdminCursosView();
+        } else {
+          loadHomeView();
+        }
+      });
+    }
+
+    // Load list of videos for a course (user mode)
+    function loadCursoVideosView(courseId) {
+      highlightNav("cursos");
+      const courses = loadData("courses") || [];
+      const course = courses.find(c => c.id === courseId);
+      if(!course) {
+        alert("Curso no encontrado");
+        loadCursosListView();
+        return;
+      }
+      if(!course.videos || course.videos.length === 0) {
+        mainContent.innerHTML = `
+          <section class="max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4 text-center select-none">${course.title}</h2>
+            <p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay videos disponibles en este curso.</p>
+            <div class="mt-6 text-center">
+              <button id="btn-back-to-cursos" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Volver a Cursos</button>
+            </div>
+          </section>
+        `;
+        document.getElementById("btn-back-to-cursos").addEventListener("click", loadCursosListView);
+        return;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-5xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold mb-6 text-center select-none">${course.title} - Videos</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            ${course.videos.map(video => `
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition select-none" data-id="${video.id}">
+                <img loading="lazy" src="https://img.youtube.com/vi/${extractYouTubeID(video.youtubeLink)}/hqdefault.jpg" alt="Miniatura del video ${video.title}" class="rounded-md mb-3 w-full object-cover h-40" />
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${video.title}</h3>
+              </div>
+            `).join("")}
+          </div>
+          <div class="mt-6 text-center">
+            <button id="btn-back-to-cursos" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Volver a Cursos</button>
+          </div>
+        </section>
+      `;
+      document.querySelectorAll("[data-id]").forEach(card => {
+        card.addEventListener("click", () => {
+          const videoId = card.getAttribute("data-id");
+          loadVideoPlayerView(courseId, videoId);
+        });
+      });
+      document.getElementById("btn-back-to-cursos").addEventListener("click", loadCursosListView);
+    }
+
+    // Load Video Player View (User) updated to accept videoId
+    function loadVideoPlayerView(courseId, videoId) {
+      highlightNav("cursos");
+      const courses = loadData("courses") || [];
+      const course = courses.find(c => c.id === courseId);
+      if(!course) {
+        alert("Curso no encontrado");
+        loadCursosListView();
+        return;
+      }
+      const video = course.videos.find(v => v.id === videoId);
+      if(!video) {
+        alert("Video no encontrado");
+        loadCursoVideosView(courseId);
+        return;
+      }
+      const ytId = extractYouTubeID(video.youtubeLink);
+      if(!ytId) {
+        alert("Link de YouTube inválido");
+        loadCursoVideosView(courseId);
+        return;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-4xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center select-none">${course.title} - ${video.title}</h2>
+          <div class="relative" style="padding-top: 56.25%;">
+            <iframe loading="lazy" src="https://www.youtube.com/embed/${ytId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"></iframe>
+          </div>
+          <div class="text-center">
+            ${video.formLink ? `<a href="${video.formLink}" target="_blank" rel="noopener" class="inline-block bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-6 py-3 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Ir al Cuestionario</a>` : `<p class="text-gray-700 dark:text-gray-300 select-text">No hay cuestionario asociado a este video.</p>`}
+          </div>
+          <div class="text-center mt-4">
+            <button id="btn-back-to-videos" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Volver a Videos</button>
+          </div>
+        </section>
+      `;
+      document.getElementById("btn-back-to-videos").addEventListener("click", () => loadCursoVideosView(courseId));
+    }
+
+    // Extract YouTube video ID from URL
+    function extractYouTubeID(url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    // Load Pacientes List View
+    function loadPacientesListView() {
+      highlightNav("pacientes");
+      let patientForms = loadData("patientForms") || [];
+      patientForms = cleanPatientForms(patientForms);
+      saveData("patientForms", patientForms);
+      if(patientForms.length === 0) {
+        mainContent.innerHTML = `
+          <section class="max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4 text-center select-none">Formularios para Pacientes</h2>
+            <p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay formularios disponibles en este momento.</p>
+          </section>
+        `;
+        return;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-4xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center select-none">Formularios para Pacientes</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            ${patientForms.map(form => `
+              <a href="${form.formLink}" target="_blank" rel="noopener" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition block select-none">
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${form.title}</h3>
+              </a>
+            `).join("")}
+          </div>
+          <div class="mt-6 text-center">
+            <button id="btn-back-pacientes" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Volver</button>
+          </div>
+        </section>
+      `;
+      document.getElementById("btn-back-pacientes").addEventListener("click", loadHomeView);
+    }
+
+    // Admin views and functions
+
+    function loadAdminCursosView() {
+      highlightNav("admin");
+      let courses = loadData("courses") || [];
+      courses = cleanCourses(courses);
+      saveData("courses", courses);
+      mainContent.innerHTML = `
+        <section class="max-w-5xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">Modo Administrador - Cursos</h2>
+          <div class="flex justify-between items-center mb-4">
+            <button id="btn-add-course" class="bg-green-600 text-white font-bold rounded-md px-5 py-2 hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-400 select-none">Agregar Curso</button>
+            <button id="btn-admin-pacientes" class="bg-blue-600 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">Ir a Pacientes</button>
+            <button id="btn-logout" class="bg-red-600 text-white font-bold rounded-md px-5 py-2 hover:bg-red-700 transition focus:outline-none focus:ring-2 focus:ring-red-400 select-none">Cerrar Sesión</button>
+          </div>
+          <div id="admin-courses-list" class="space-y-4">
+            ${courses.length === 0 ? `<p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay cursos agregados.</p>` : ""}
+            ${courses.map(course => `
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 select-none">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${course.title}</h3>
+                  <div class="space-x-2">
+                    <button class="btn-edit-course bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" data-id="${course.id}">Editar</button>
+                    <button class="btn-delete-course bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400" data-id="${course.id}">Eliminar</button>
+                    <button class="btn-manage-videos bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400" data-id="${course.id}">Videos</button>
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+
+      document.getElementById("btn-add-course").addEventListener("click", () => {
+        openCourseForm();
+      });
+      document.getElementById("btn-admin-pacientes").addEventListener("click", loadAdminPacientesView);
+      document.getElementById("btn-logout").addEventListener("click", () => {
+        isAdmin = false;
+        loadHomeView();
+      });
+
+      attachAdminCourseButtons();
+    }
+
+    function attachAdminCourseButtons() {
+      document.querySelectorAll(".btn-edit-course").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const courseId = btn.getAttribute("data-id");
+          openCourseForm(courseId);
+        });
+      });
+      document.querySelectorAll(".btn-delete-course").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const courseId = btn.getAttribute("data-id");
+          if(confirm("¿Está seguro de eliminar este curso? Se eliminarán también sus videos.")) {
+            deleteCourse(courseId);
+          }
+        });
+      });
+      document.querySelectorAll(".btn-manage-videos").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const courseId = btn.getAttribute("data-id");
+          loadAdminVideosView(courseId);
+        });
+      });
+    }
+
+    function openCourseForm(courseId = null) {
+      const courses = loadData("courses") || [];
+      let course = {title: ""};
+      let isEdit = false;
+      if(courseId) {
+        course = courses.find(c => c.id === courseId);
+        if(!course) {
+          alert("Curso no encontrado");
+          return;
+        }
+        isEdit = true;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-md mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">${isEdit ? "Editar Curso" : "Agregar Curso"}</h2>
+          <form id="course-form" class="space-y-4">
+            <div>
+              <label for="course-title" class="block font-semibold mb-1 select-none">Título del Curso</label>
+              <input type="text" id="course-title" name="course-title" value="${course.title}" required class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div class="flex justify-between">
+              <button type="button" id="btn-cancel-course" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Cancelar</button>
+              <button type="submit" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">${isEdit ? "Guardar Cambios" : "Agregar Curso"}</button>
+            </div>
+          </form>
+        </section>
+      `;
+      document.getElementById("btn-cancel-course").addEventListener("click", loadAdminCursosView);
+      document.getElementById("course-form").addEventListener("submit", e => {
+        e.preventDefault();
+        const title = e.target["course-title"].value.trim();
+        if(title === "") {
+          alert("El título no puede estar vacío.");
+          return;
+        }
+        if(isEdit) {
+          course.title = title;
+          saveData("courses", courses);
+        } else {
+          courses.push({id: generateId(), title, videos: []});
+          saveData("courses", courses);
+        }
+        loadAdminCursosView();
+      });
+    }
+
+    function deleteCourse(courseId) {
+      let courses = loadData("courses") || [];
+      courses = courses.filter(c => c.id !== courseId);
+      saveData("courses", courses);
+      loadAdminCursosView();
+    }
+
+    function loadAdminVideosView(courseId) {
+      highlightNav("admin");
+      const courses = loadData("courses") || [];
+      const course = courses.find(c => c.id === courseId);
+      if(!course) {
+        alert("Curso no encontrado");
+        loadAdminCursosView();
+        return;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-5xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">Videos del Curso: ${course.title}</h2>
+          <div class="flex justify-between items-center mb-4">
+            <button id="btn-add-video" class="bg-green-600 text-white font-bold rounded-md px-5 py-2 hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-400 select-none">Agregar Video</button>
+            <button id="btn-back-to-courses" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Volver a Cursos</button>
+          </div>
+          <div id="admin-videos-list" class="space-y-4">
+            ${course.videos.length === 0 ? `<p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay videos agregados.</p>` : ""}
+            ${course.videos.map(video => `
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 select-none">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${video.title}</h3>
+                  <div class="space-x-2">
+                    <button class="btn-edit-video bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" data-id="${video.id}">Editar</button>
+                    <button class="btn-delete-video bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400" data-id="${video.id}">Eliminar</button>
+                  </div>
+                </div>
+                <p class="text-sm mt-1 select-text">YouTube: <a href="${video.youtubeLink}" target="_blank" class="text-blue-600 dark:text-blue-400 underline">${video.youtubeLink}</a></p>
+                <p class="text-sm mt-1 select-text">Formulario: <a href="${video.formLink || '#'}" target="_blank" class="text-blue-600 dark:text-blue-400 underline">${video.formLink || "No asignado"}</a></p>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+
+      document.getElementById("btn-add-video").addEventListener("click", () => {
+        openVideoForm(courseId);
+      });
+      document.getElementById("btn-back-to-courses").addEventListener("click", loadAdminCursosView);
+
+      attachAdminVideoButtons(courseId);
+    }
+
+    function attachAdminVideoButtons(courseId) {
+      document.querySelectorAll(".btn-edit-video").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const videoId = btn.getAttribute("data-id");
+          openVideoForm(courseId, videoId);
+        });
+      });
+      document.querySelectorAll(".btn-delete-video").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const videoId = btn.getAttribute("data-id");
+          if(confirm("¿Está seguro de eliminar este video?")) {
+            deleteVideo(courseId, videoId);
+          }
+        });
+      });
+    }
+
+    function openVideoForm(courseId, videoId = null) {
+      const courses = loadData("courses") || [];
+      const course = courses.find(c => c.id === courseId);
+      if(!course) {
+        alert("Curso no encontrado");
+        loadAdminCursosView();
+        return;
+      }
+      let video = {title: "", youtubeLink: "", formLink: ""};
+      let isEdit = false;
+      if(videoId) {
+        video = course.videos.find(v => v.id === videoId);
+        if(!video) {
+          alert("Video no encontrado");
+          loadAdminVideosView(courseId);
+          return;
+        }
+        isEdit = true;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-md mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">${isEdit ? "Editar Video" : "Agregar Video"}</h2>
+          <form id="video-form" class="space-y-4">
+            <div>
+              <label for="video-title" class="block font-semibold mb-1 select-none">Título del Video</label>
+              <input type="text" id="video-title" name="video-title" value="${video.title}" required class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div>
+              <label for="youtube-link" class="block font-semibold mb-1 select-none">Link de YouTube</label>
+              <input type="url" id="youtube-link" name="youtube-link" value="${video.youtubeLink}" required placeholder="https://www.youtube.com/watch?v=..." class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div>
+              <label for="form-link" class="block font-semibold mb-1 select-none">Link del Formulario de Google (opcional)</label>
+              <input type="url" id="form-link" name="form-link" value="${video.formLink}" placeholder="https://docs.google.com/forms/..." class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div class="flex justify-between">
+              <button type="button" id="btn-cancel-video" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Cancelar</button>
+              <button type="submit" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">${isEdit ? "Guardar Cambios" : "Agregar Video"}</button>
+            </div>
+          </form>
+        </section>
+      `;
+      document.getElementById("btn-cancel-video").addEventListener("click", () => {
+        loadAdminVideosView(courseId);
+      });
+      document.getElementById("video-form").addEventListener("submit", e => {
+        e.preventDefault();
+        const title = e.target["video-title"].value.trim();
+        const youtubeLink = e.target["youtube-link"].value.trim();
+        const formLink = e.target["form-link"].value.trim();
+        if(title === "" || youtubeLink === "") {
+          alert("El título y el link de YouTube son obligatorios.");
+          return;
+        }
+        if(!extractYouTubeID(youtubeLink)) {
+          alert("El link de YouTube no es válido.");
+          return;
+        }
+        if(isEdit) {
+          video.title = title;
+          video.youtubeLink = youtubeLink;
+          video.formLink = formLink;
+          saveData("courses", courses);
+        } else {
+          course.videos.push({id: generateId(), title, youtubeLink, formLink});
+          saveData("courses", courses);
+        }
+        loadAdminVideosView(courseId);
+      });
+    }
+
+    function deleteVideo(courseId, videoId) {
+      const courses = loadData("courses") || [];
+      const course = courses.find(c => c.id === courseId);
+      if(!course) return;
+      course.videos = course.videos.filter(v => v.id !== videoId);
+      saveData("courses", courses);
+      loadAdminVideosView(courseId);
+    }
+
+    function loadAdminPacientesView() {
+      highlightNav("admin");
+      let patientForms = loadData("patientForms") || [];
+      patientForms = cleanPatientForms(patientForms);
+      saveData("patientForms", patientForms);
+      mainContent.innerHTML = `
+        <section class="max-w-5xl mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">Modo Administrador - Formularios de Pacientes</h2>
+          <div class="flex justify-between items-center mb-4">
+            <button id="btn-add-patient-form" class="bg-green-600 text-white font-bold rounded-md px-5 py-2 hover:bg-green-700 transition focus:outline-none focus:ring-2 focus:ring-green-400 select-none">Agregar Formulario</button>
+            <button id="btn-back-to-admin-cursos" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Volver a Cursos</button>
+            <button id="btn-logout" class="bg-red-600 text-white font-bold rounded-md px-5 py-2 hover:bg-red-700 transition focus:outline-none focus:ring-2 focus:ring-red-400 select-none">Cerrar Sesión</button>
+          </div>
+          <div id="admin-patient-forms-list" class="space-y-4">
+            ${patientForms.length === 0 ? `<p class="text-center text-gray-700 dark:text-gray-300 select-text">No hay formularios agregados.</p>` : ""}
+            ${patientForms.map(form => `
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 select-none">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-semibold text-lg text-gray-900 dark:text-gray-100">${form.title}</h3>
+                  <div class="space-x-2">
+                    <button class="btn-edit-patient-form bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" data-id="${form.id}">Editar</button>
+                    <button class="btn-delete-patient-form bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400" data-id="${form.id}">Eliminar</button>
+                  </div>
+                </div>
+                <p class="text-sm mt-1 select-text">Link: <a href="${form.formLink}" target="_blank" class="text-blue-600 dark:text-blue-400 underline">${form.formLink}</a></p>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+
+      document.getElementById("btn-add-patient-form").addEventListener("click", () => {
+        openPatientFormForm();
+      });
+      document.getElementById("btn-back-to-admin-cursos").addEventListener("click", loadAdminCursosView);
+      document.getElementById("btn-logout").addEventListener("click", () => {
+        isAdmin = false;
+        loadHomeView();
+      });
+
+      attachAdminPatientFormButtons();
+    }
+
+    function attachAdminPatientFormButtons() {
+      document.querySelectorAll(".btn-edit-patient-form").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const formId = btn.getAttribute("data-id");
+          openPatientFormForm(formId);
+        });
+      });
+      document.querySelectorAll(".btn-delete-patient-form").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const formId = btn.getAttribute("data-id");
+          if(confirm("¿Está seguro de eliminar este formulario?")) {
+            deletePatientForm(formId);
+          }
+        });
+      });
+    }
+
+    function openPatientFormForm(formId = null) {
+      const patientForms = loadData("patientForms") || [];
+      let form = {title: "", formLink: ""};
+      let isEdit = false;
+      if(formId) {
+        form = patientForms.find(f => f.id === formId);
+        if(!form) {
+          alert("Formulario no encontrado");
+          return;
+        }
+        isEdit = true;
+      }
+      mainContent.innerHTML = `
+        <section class="max-w-md mx-auto space-y-6">
+          <h2 class="text-2xl font-bold text-center mb-6 select-none">${isEdit ? "Editar Formulario" : "Agregar Formulario"}</h2>
+          <form id="patient-form-form" class="space-y-4">
+            <div>
+              <label for="form-title" class="block font-semibold mb-1 select-none">Título del Formulario</label>
+              <input type="text" id="form-title" name="form-title" value="${form.title}" required class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div>
+              <label for="form-link" class="block font-semibold mb-1 select-none">Link del Formulario de Google</label>
+              <input type="url" id="form-link" name="form-link" value="${form.formLink}" required placeholder="https://docs.google.com/forms/..." class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div class="flex justify-between">
+              <button type="button" id="btn-cancel-patient-form" class="bg-gray-400 dark:bg-gray-600 text-white font-bold rounded-md px-5 py-2 hover:bg-gray-500 dark:hover:bg-gray-700 transition focus:outline-none focus:ring-2 focus:ring-gray-400 select-none">Cancelar</button>
+              <button type="submit" class="bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-md px-5 py-2 hover:bg-blue-700 dark:hover:bg-blue-800 transition focus:outline-none focus:ring-2 focus:ring-blue-400 select-none">${isEdit ? "Guardar Cambios" : "Agregar Formulario"}</button>
+            </div>
+          </form>
+        </section>
+      `;
+      document.getElementById("btn-cancel-patient-form").addEventListener("click", loadAdminPacientesView);
+      document.getElementById("patient-form-form").addEventListener("submit", e => {
+        e.preventDefault();
+        const title = e.target["form-title"].value.trim();
+        const formLink = e.target["form-link"].value.trim();
+        if(title === "" || formLink === "") {
+          alert("El título y el link del formulario son obligatorios.");
+          return;
+        }
+        const patientForms = loadData("patientForms") || [];
+        if(isEdit) {
+          form.title = title;
+          form.formLink = formLink;
+          saveData("patientForms", patientForms);
+        } else {
+          patientForms.push({id: generateId(), title, formLink});
+          saveData("patientForms", patientForms);
+        }
+        loadAdminPacientesView();
+      });
+    }
+
+    function deletePatientForm(formId) {
+      let patientForms = loadData("patientForms") || [];
+      patientForms = patientForms.filter(f => f.id !== formId);
+      saveData("patientForms", patientForms);
+      loadAdminPacientesView();
+    }
+
+    // Nav buttons event listeners
+    navInicio.addEventListener("click", () => {
+      if(isAdmin) {
+        loadAdminCursosView();
+      } else {
+        loadHomeView();
+      }
+    });
+    navCursos.addEventListener("click", () => {
+      if(isAdmin) {
+        loadAdminCursosView();
+      } else {
+        loadCursosListView();
+      }
+    });
+    navPacientes.addEventListener("click", () => {
+      if(isAdmin) {
+        loadAdminPacientesView();
+      } else {
+        loadPacientesListView();
+      }
+    });
+    btnEntrarCursos.addEventListener("click", () => {
+      if(isAdmin) {
+        loadAdminCursosView();
+      } else {
+        loadCursosListView();
+      }
+    });
+
+    // Initial load
+    loadHomeView();
+  </script>
+</body>
+</html>
